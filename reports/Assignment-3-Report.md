@@ -52,11 +52,14 @@ can be processed together. Like this, it is straightforward e.g. calculate the a
 in a time windows to create a less noisy air quality index, detect malfunctioning sensors, or detect pollution spikes
 based on the trend of the measurements in that one sensor.
 
-(ii) Generally, I think all the delivery guarantees could be suitable here. I would be nice to have exactly once
-delivery, but it is not strictly necessary, as there isn't necessarily anything that speaks against getting some
-measurements multiple times or losing some measurements in transit. Based on that, I would say that a possible
-performance penalty for going with exactly once delivery would probably not be worth it, and since the data is not
-critical, and it would be fine if some measurements are lost, at most once delivery would be the best choice.
+(ii) Generally, I think all the delivery guarantees could be applicable here. I would be nice to have exactly once
+delivery for maximum accuracy, but it is not strictly necessary, as there is no big penalty for some measurements
+getting lost in transit (the resulting picture would just be slightly less complete). At least once delivery might not
+be the best choice here, as processing some measurements twice uses unnecessary computing resources for comparatively
+little gain. Based on these considerations, I would say that a possible performance penalty for going with exactly once
+delivery would probably not be worth it, and the extra computing resources that might be used for at least once delivery
+should be avoided. Since the data is not critical and it would be fine if some measurements are lost, at most once
+delivery would be the best choice in nailing down the performance/accuracy tradeoff.
 
 3. Given streaming data from the tenant (selected before). Explain and give examples in your
    explanation for the following points: (i) which types of time should be associated with stream data
@@ -67,25 +70,30 @@ critical, and it would be fine if some measurements are lost, at most once deliv
    not and explain why.(1 point)
 
 (i) As-is, the measurements come with a timestamp that gives the time the measurement was taken (event time), which
-would be ideal for processing. This is the time we would likely be most interested in when drawing conclusions from the
+would be ideal for processing. This is the time we would be most interested in when drawing conclusions from the
 data. If the data didn't come with a timestamp recording the event time, I would try to approximate the event time as
-close as possible -- i.e. the time the message was received by the messaging system (ingestion time) or if all else
-fails, the time the message was processed by the stream processing system (processing time). For system-level analytics
-it could also be interesting to look at the latency between the different timestamps to check for performance issues.
+close as possible -- i.e. the time the message was received by the messaging system (ingestion time, recorded by Kafka)
+or if all else fails, the time the message was processed by the stream processing system (processing time, given by
+Spark). For system-level analytics it could also be interesting to look at the latency between the different timestamps
+to check for performance issues in the system, e.g. is there a big latency between ingestion time and processing time?
 
 (ii) Generally, the options would be tumbling windows, sliding windows, and session windows. For the air quality data,
-session windows would not make sense. Tumbling windows could be used to calculate e.g. an hourly air quality index.
-Sliding windows seems like the most interesting option, as it would allow us to calculate e.g. a rolling average of the
-pollution levels over the last hour, which could be used to detect pollution spikes.
+session windows would not really make sense as there is no session. Tumbling windows could be used to calculate e.g. an
+hourly air quality index. Sliding windows seems like the most interesting option, as it would allow us to calculate e.g.
+a rolling average of the different pollution levels over the last hour, which could then be further aggregated to
+calculate an overall air quality index.
 
 (iii) Out-of-order data can mainly be caused by network issues, where messages are delayed and arrive out of order. In
 this case, the sensors are also located in different countries with possibly different time zones that are not indicated
-in the timestamps, so this could also cause technically out-of-order data; or the sensor clocks might not be perfectly
-synchronized.
+in the event timestamps that are associated with the measurements, so this could also cause technically out-of-order
+data; or the sensor clocks might not be perfectly synchronized.
 
 (iv) Watermarks should be used so that the stream processing system can close each window in a reasonable time so that
-the results become available in a timely manner. Measurements that are very late can just be dropped, as they are likely
-not that relevant for real-time analytics anymore at that point.
+the results become available in a timely manner, even if some measurements are delayed - we want a good estimate of the
+analytics results to become available as soon as possible, even if the data is not complete yet. Measurements that are
+very late (e.g. because of network issues) should not be considered in the calculation of the window, as they would not
+be relevant for the real-time analytics anymore, as the aim is not to have a perfect picture of the data but to have a
+good enough picture of the data as soon as possible.
 
 4. List important performance metrics for the streaming analytics for your tenant cases. For each
    metric, explain (i) its definition, (ii) how to measure it in your analytics/platform and (iii) its
@@ -116,17 +124,30 @@ TODO: explain how to measure and why they are important
    (`tenantstreamapp`). (1 point)
 
 (i) The schema of the input data can be found in ![schema.py](../code/tenantstreamapp/schema.py). Each input measurement
-has an id, timestamp, location, sensor metadata, and some actual measurement data and is represented as a nested
-dictionary. Upon ingestion into the messaging system, 
+has an id, timestamp, location, sensor metadata, and some "actual" measurement data. The actual measurement data
+consists of a list of measurements, each with a type and a value (e.g. temperature, 20.0). It is important to note that
+each measurement sent in a semi-structured format and is a nested object, as there is quite a lot of metadata for each
+sensor and location. Since there are different types of sensors that take different types of measurements, each
+measurement need to define its type instead of having a fixed list of fields like temperature, humidity, etc. in the
+schema. This way, the schema can be extended to include new types of measurements without having to change the schema
+itself.
 
+It is important to enforce schemas for both the input and result data to ensure that the data is correctly interpreted
+and processed by the `tenantstreamapp` and to ensure that the results are correctly interpreted by the tenant as
+well. If the `coredms` wasn't document-based but rather a relational database, the schema would also need to be enforced
+for being able to store the results in the database. Enforcing the schema also makes sure that wrong data that
+accidentally gets into the system is caught early and can be handled appropriately instead of causing errors or wrong
+results further down the line. In this case, the schema is enforced by the Spark SQL JSON deserializer `from_json` when
+reading the input stream.
 
 TODO: output schema
 
-(ii) The input data is JSON serialized. Upon ingestion into the messaging system, each measurement becomes a Kafka message
-with the key being the sensor id and the value being the JSON serialized measurement, as well as some metadata (e.g. 
-timestamp ==  ingestion time, topic, partition, offset). The `tenantstreamapp` uses Spark Structured Streaming to read
-the input stream using the SS Kafka connector and then deserializes the JSON data using both the schema described above
-and the Spark SQL JSON deserializer `from_json`.
+(ii) The input data is JSON serialized and binary encoded so that it can be handled by Kafka. Upon ingestion into the
+messaging system, each measurement becomes a Kafka message with the key being the sensor id and the value being the JSON
+serialized measurement, as well as some metadata (e.g. timestamp i.e. ingestion time, topic, partition, offset).
+The `tenantstreamapp` uses Spark Structured Streaming to read the input stream using the SS Kafka connector and then
+decodes and deserializes the JSON data using both the schema described above and the Spark SQL JSON
+deserializer `from_json`.
 
 TODO: output serialization
 
@@ -134,21 +155,47 @@ TODO: output serialization
    implementation. Explain under which conditions/configurations and how the results are sent back to
    the tenant in a near real time manner and/or are stored into `mysimbdp-coredms` as the final sink. (1 point)
 
+Logic: TODO
+
+The design for sending the results back to the tenant is quite straightforward; they are continuously published to a
+Kafka topic that the tenant can subscribe to. For storing the results in `mysimbdp-coredms`, I considered two main
+options: (1) directly ingesting the results into `mysimbdp-coredms` using the SS Mongo connector as they calculated;
+this would be done within the `tenantstreamapp` itself, or (2) publishing the results to a Kafka topic as an
+intermediate step and then ingesting them into `mysimbdp-coredms` using a separate Spark job a la `tenant-streamingest`.
+I decided to go with the second option as it allows for more flexibility and scalability, and decouples analytics from
+ingestion. This way, the tenant can decide to use the results in other ways than just storing them in `mysimbdp-coredms`
+without having to change the `tenantstreamapp` itself. Additionally, the jobs can be scaled independently, and the
+ingestion process can be optimized separately from the analytics process.
+
+TODO: insert figure
+
 3. Explain a test environment for testing `tenantstreamapp`, including how you emulate streaming data,
-   configuration of mysimbdp and other relevant parameters. Run `tenantstreamapp` and show the
+   configuration of `mysimbdp` and other relevant parameters. Run `tenantstreamapp` and show the
    operation of the `tenantstreamapp` with your test environments. Discuss the analytics and its
    performance observations when you increase/vary the speed of streaming data. (1 point)
+
+* Emulating streaming data:
+* Configuration of `mysimbdp`:
+* Other relevant parameters:
+* Running `tenantstreamapp`:
+* Performance observations: (increase/vary the speed of streaming data)
 
 4. Present your tests and explain them for the situation in which wrong data is sent from or is within
    the data sources. Explain how you emulate wrong data for your tests. Report how your
    implementation deals with that (e.g., exceptions, failures, and decreasing performance). You should
    test with different error rates. (1 point)
 
+* Test design: (e.g. different error rates)
+* Emulating wrong data: (e.g. wrong schema, wrong values, missing values)
+* How the implementation deals with wrong data: (e.g. exceptions, failures, decreasing performance)
+
 5. Explain parallelism settings in your implementation (`tenantstreamapp`) and test with different
    (higher) degrees of parallelism for at least two instances of `tenantstreamapp` (e.g., using different
    subsets of the same dataset). Report the performance and issues you have observed in your testing
    environments. Is there any situation in which a high value of the application parallelism degree could
    cause performance problems, given your limited underlying computing resources (1 point).
+
+
 
 # Part 3 - Extension (weighted factor for grades = 2)
 

@@ -15,7 +15,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   spark:
-    image: bitnami/spark:3.5.1
+    image: bitnami/spark:3.2.4
     environment:
       - SPARK_MODE=master
     expose:
@@ -24,7 +24,7 @@ services:
       - "8080:8080"
 
   spark-worker:
-    image: bitnami/spark:3.5.1
+    image: bitnami/spark:3.2.4
     depends_on:
       - spark
     environment:
@@ -43,4 +43,20 @@ services:
       - KAFKA=kafka:9092
       - ZOOKEEPER=${ZOOKEEPER}
       - KAFKA_TOPIC=${KAFKA_TOPIC}
+
+  mongodb:
+    image: 'bitnami/mongodb:latest'
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGODB_ROOT_PASSWORD=root
+      - MONGODB_USERNAME=admin
+      - MONGODB_PASSWORD=admin
+      - MONGODB_DATABASE=coredms
+
+    volumes:
+      - mongodb_data:/bitnami/mongodb
+
+volumes:
+  mongodb_data:
 

@@ -5,3 +5,4 @@ grpcio
 grpcio-status
 googleapis-common-protos
 kafka-python
+pymongo
