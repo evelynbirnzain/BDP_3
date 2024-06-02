@@ -1,32 +1,20 @@
-FROM openjdk:8 as BASE
-COPY --from=python:3.6 / /
+FROM amazoncorretto:17-alpine
 
-RUN apt update && \
-    apt install -y python3-pip && \
-    apt install -y curl
+RUN apk --no-cache add curl bash tar python3
 
-RUN curl -O https://archive.apache.org/dist/spark/spark-2.4.6/spark-2.4.6-bin-hadoop2.7.tgz
-RUN tar xvf spark-2.4.6-bin-hadoop2.7.tgz
+RUN curl -O https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz
+RUN tar xvf spark-3.5.1-bin-hadoop3.tgz
 
-RUN mv spark-2.4.6-bin-hadoop2.7/ /opt/spark 
+RUN mv spark-3.5.1-bin-hadoop3/ /opt/spark
 
 RUN echo "export SPARK_HOME=/opt/spark" >> ~/.bashrc
 RUN echo "export PATH=$PATH:/opt/spark/bin:/opt/spark/sbin" >> ~/.bashrc
-RUN echo "export PYSPARK_PYTHON=python3.6" >> ~/.bashrc 
-
-COPY requirements.txt requirements.txt
-
-RUN pip3 install -r requirements.txt
-
-#For deugging our spark application
-RUN apt install -y vim
 
 WORKDIR /spark-processor
 
 ENV SPARK_HOME=/opt/spark
 ENV PATH=$PATH:/opt/spark/bin:/opt/spark/sbin
-ENV PYSPARK_PYTHON=python3.6
-ENV PACKAGES=org.apache.spark:spark-streaming-kafka-0-8-assembly_2.11:2.4.6
+ENV PACKAGES=org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1
 
 COPY . .
 

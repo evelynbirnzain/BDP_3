@@ -38,7 +38,7 @@ class KafkaPublisher:
         self.logger.info(f"Publishing to topic: {topic}")
         try:
             ack = self._producer.send(topic, str.encode(json.dumps(value)))
-            res = ack.get(2)
+            res = ack.get(10)
             self.logger.info(f"Published to Kafka: {res}")
             ack.add_callback(on_send_success)
             ack.add_errback(on_send_error)

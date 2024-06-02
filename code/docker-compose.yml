@@ -15,7 +15,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   spark:
-    image: bitnami/spark:2.4.6
+    image: bitnami/spark:3.5.1
     environment:
       - SPARK_MODE=master
     expose:
@@ -24,7 +24,7 @@ services:
       - "8080:8080"
 
   spark-worker:
-    image: bitnami/spark:2.4.6
+    image: bitnami/spark:3.5.1
     depends_on:
       - spark
     environment:

@@ -1,3 +1,2 @@
-kafka-python==2.0.1
-pyspark==2.4.6
-pyspark-stubs==2.4.0
+kafka-python==2.0.2
+pyspark==3.5.1
