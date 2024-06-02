@@ -2,12 +2,12 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 
 sensor_schema = StructType([
     StructField("id", StringType(), False),
-    StructField("pin", StringType(), False),
+    StructField("pin", StringType(), True),
     StructField("sensor_type", StructType([
-        StructField("id", IntegerType(), False),
-        StructField("name", StringType(), False),
-        StructField("manufacturer", StringType(), False)
-    ]), False),
+        StructField("id", IntegerType(), True),
+        StructField("name", StringType(), True),
+        StructField("manufacturer", StringType(), True)
+    ]), True),
 ])
 
 sensor_data_values_schema = ArrayType(StructType([
@@ -18,12 +18,12 @@ sensor_data_values_schema = ArrayType(StructType([
 
 location_schema = StructType([
     StructField("id", IntegerType(), False),
-    StructField("latitude", StringType(), False),
-    StructField("longitude", StringType(), False),
-    StructField("altitude", StringType(), False),
-    StructField("country", StringType(), False),
-    StructField("exact_location", BooleanType(), False),
-    StructField("indoor", BooleanType(), False)
+    StructField("latitude", StringType(), True),
+    StructField("longitude", StringType(), True),
+    StructField("altitude", StringType(), True),
+    StructField("country", StringType(), True),
+    StructField("exact_location", BooleanType(), True),
+    StructField("indoor", BooleanType(), True)
 ])
 
 schema = StructType([

@@ -1,0 +1,5 @@
+kafka-python==2.0.2
+python-dotenv
+matplotlib
+pandas
+tqdm
