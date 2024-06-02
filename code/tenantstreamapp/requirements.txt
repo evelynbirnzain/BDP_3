@@ -1,0 +1,7 @@
+pandas
+pyarrow
+numpy
+grpcio
+grpcio-status
+googleapis-common-protos
+kafka-python

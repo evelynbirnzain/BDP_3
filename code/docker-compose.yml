@@ -7,10 +7,10 @@ services:
   kafka:
     image: wurstmeister/kafka
     ports:
-      - "9092:9092"
+      - "${KAFKA_PORT}:${KAFKA_PORT}"
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: 192.168.0.21
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_HOST_NAME: ${KAFKA_HOST}
+      KAFKA_ZOOKEEPER_CONNECT: ${ZOOKEEPER}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -29,15 +29,18 @@ services:
       - spark
     environment:
       - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_MASTER_URL=${SPARK_MASTER}
       - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
 
   spark-submit:
     image: sparkprocessor
     build:
-      context: ./SparkProcessor
+      context: tenantstreamapp
       dockerfile: Dockerfile
     environment:
-      - MASTER=spark://spark:7077
-      - PACKAGES=org.apache.spark:spark-streaming-kafka-0-8-assembly_2.11:2.4.6
+      - MASTER=${SPARK_MASTER}
+      - KAFKA=kafka:9092
+      - ZOOKEEPER=${ZOOKEEPER}
+      - KAFKA_TOPIC=${KAFKA_TOPIC}
+
