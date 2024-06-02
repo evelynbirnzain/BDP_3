@@ -15,7 +15,7 @@ consoleHandler.setFormatter(logFormatter)
 consoleHandler.setLevel(logging.DEBUG)
 rootLogger.addHandler(consoleHandler)
 
-WINDOW_DURATION = 60
+WINDOW_DURATION = 5
 zookeeper_quorum = 'zookeeper:2181'
 consumer_group_id = 'spark-streaming'
 topic_report = 'report'
@@ -25,7 +25,7 @@ sc = SparkContext("spark://spark:7077", appName="Pyspark_Temperature_Monitor")
 sc.setLogLevel("WARN")
 
 ssc = StreamingContext(sc, WINDOW_DURATION)
-kafkaStream = KafkaUtils.createStream(ssc, zookeeper_quorum, consumer_group_id, {'sensors.temperature.4': 1})
+kafkaStream = KafkaUtils.createStream(ssc, zookeeper_quorum, consumer_group_id, {'sensors.temperature.6': 1})
 
 
 # Reporting Services
@@ -43,6 +43,9 @@ def send_alert(key, node_avg_data, node_avg_count):
 def process_kafka_pending_messages(message):
     rootLogger.info("========= Started Processing New RDD! =========")
     kafka_messages = message.collect()
+
+    rootLogger.info(f"Processing {len(kafka_messages)} messages")
+    rootLogger.info(kafka_messages)
     try:
         data = []
         node_avg_data = {}
@@ -70,11 +73,12 @@ def process_kafka_pending_messages(message):
             send_alert(key, node_avg_data, node_avg_count)
 
     except Exception as e:
-        rootLogger.error(f"Encountred exception while processing: {e}")
+        rootLogger.error(f"Encountered exception while processing: {e}")
     rootLogger.info("========= Finish =========")
 
 
 parsed = kafkaStream.map(lambda v: v[1])
+print(parsed)
 parsed.foreachRDD(process_kafka_pending_messages)
 
 ssc.start()

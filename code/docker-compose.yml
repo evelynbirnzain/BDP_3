@@ -3,17 +3,19 @@ services:
     image: wurstmeister/zookeeper
     ports:
       - "2181:2181"
+
   kafka:
     image: wurstmeister/kafka
     ports:
-      - "9092"
+      - "9092:9092"
     environment:
       KAFKA_ADVERTISED_HOST_NAME: 192.168.0.21
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
   spark:
-    image: bitnami/spark:latest
+    image: bitnami/spark:2.4.6
     environment:
       - SPARK_MODE=master
     expose:
@@ -22,7 +24,7 @@ services:
       - "8080:8080"
 
   spark-worker:
-    image: bitnami/spark:latest
+    image: bitnami/spark:2.4.6
     depends_on:
       - spark
     environment:
@@ -30,3 +32,12 @@ services:
       - SPARK_MASTER_URL=spark://spark:7077
       - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
+
+  spark-submit:
+    image: sparkprocessor
+    build:
+      context: ./SparkProcessor
+      dockerfile: Dockerfile
+    environment:
+      - MASTER=spark://spark:7077
+      - PACKAGES=org.apache.spark:spark-streaming-kafka-0-8-assembly_2.11:2.4.6
